@@ -46,11 +46,11 @@ const Tasks = () => {
       const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer sk-mmamfmsytbytlppkomdzhyrgtxsuqyhxtbqqsrglzwjfuags',
+          'Authorization': 'Bearer sk-kdwsdmvuqodqsiqscshzfoupwnuixqoazuozrrhqrkidlvwv',
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "deepseek-ai/DeepSeek-R1",
+          model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
           messages: [
             {
               role: "user",
