@@ -39,10 +39,12 @@
   }
 }
 
-.glass-card {
-  @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-lg;
-}
+@layer components {
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-lg;
+  }
 
-.hover-scale {
-  @apply transition-transform duration-200 hover:scale-102;
+  .hover-scale {
+    @apply transition-transform duration-200 hover:scale-102;
+  }
 }

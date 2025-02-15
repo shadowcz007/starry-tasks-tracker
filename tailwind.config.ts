@@ -19,6 +19,9 @@ export default {
       },
     },
     extend: {
+      scale: {
+        '102': '1.02',
+      },
       colors: {
         starry: {
           purple: "#9b87f5",
