@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Card } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   ListTodo,
@@ -9,6 +10,8 @@ import {
 } from "lucide-react";
 
 const Index = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-starry-soft via-white to-starry-light p-6">
       <div className="max-w-7xl mx-auto">
@@ -28,7 +31,10 @@ const Index = () => {
         {/* Main Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Tasks Card */}
-          <Card className="glass-card p-6 hover-scale">
+          <Card 
+            className="glass-card p-6 hover-scale cursor-pointer"
+            onClick={() => navigate("/tasks")}
+          >
             <div className="flex items-center gap-4 mb-4">
               <div className="p-3 bg-starry-purple/10 rounded-lg">
                 <ListTodo className="w-6 h-6 text-starry-purple" />
