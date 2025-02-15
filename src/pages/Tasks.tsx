@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,11 +13,26 @@ interface Task {
   completed: boolean;
 }
 
+const STORAGE_KEY = 'starry-tasks';
+
 const Tasks = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [newTask, setNewTask] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // 从 localStorage 加载数据
+  useEffect(() => {
+    const savedTasks = localStorage.getItem(STORAGE_KEY);
+    if (savedTasks) {
+      setTasks(JSON.parse(savedTasks));
+    }
+  }, []);
+
+  // 当任务列表变化时保存到 localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  }, [tasks]);
 
   const addTask = (e: React.FormEvent) => {
     e.preventDefault();
