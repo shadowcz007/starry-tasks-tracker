@@ -11,6 +11,13 @@ interface Task {
   id: number;
   content: string;
   completed: boolean;
+  plan?: string;
+  reasoning?: string;
+  isGeneratingPlan?: boolean;
+}
+
+interface TaskPlan {
+  content: string;
 }
 
 const STORAGE_KEY = 'starry-tasks';
@@ -34,7 +41,103 @@ const Tasks = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks]);
 
-  const addTask = (e: React.FormEvent) => {
+  const generateTaskPlan = async (taskContent: string): Promise<string> => {
+    try {
+      const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer sk-kdwsdmvuqodqsiqscshzfoupwnuixqoazuozrrhqrkidlvwv',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B",
+          messages: [
+            {
+              role: "user",
+              content: `请为这个任务制定一个详细的执行计划，字数控制在100字以内：${taskContent}`
+            }
+          ],
+          max_tokens: 512,
+          temperature: 0.7,
+          stream: true,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('网络请求失败');
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('无法获取响应流');
+      }
+
+      let currentPlan = '';
+      let currentReasoning = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              if (line === 'data: [DONE]') continue;
+              
+              const data = JSON.parse(line.slice(6));
+              const content = data.choices[0]?.delta?.content || '';
+              const reasoningContent = data.choices[0]?.delta?.reasoning_content || '';
+              
+              currentPlan += content;
+              currentReasoning += reasoningContent;
+              
+              // 更新：在生成过程中同时显示当前计划内容和推理内容
+              setTasks(prevTasks => 
+                prevTasks.map(t => 
+                  t.content === taskContent 
+                    ? { 
+                        ...t, 
+                        plan: currentPlan,
+                        reasoning: currentReasoning,
+                        isGeneratingPlan: true
+                      }
+                    : t
+                )
+              );
+            } catch (e) {
+              console.error('解析响应数据失败:', e);
+            }
+          }
+        }
+      }
+
+      // 生成完成后，更新最终状态
+      setTasks(prevTasks => 
+        prevTasks.map(t => 
+          t.content === taskContent 
+            ? { 
+                ...t, 
+                plan: currentPlan, 
+                reasoning: currentReasoning,
+                isGeneratingPlan: false 
+              }
+            : t
+        )
+      );
+
+      return currentPlan;
+    } catch (error) {
+      console.error('生成计划失败:', error);
+      throw error;
+    }
+  };
+
+  const addTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.trim()) {
       toast({
@@ -44,17 +147,32 @@ const Tasks = () => {
       return;
     }
     
+    // 创建新任务，初始计划为空，设置生成中状态
     const task: Task = {
       id: Date.now(),
       content: newTask.trim(),
       completed: false,
+      plan: '',
+      reasoning: '',
+      isGeneratingPlan: true,
     };
     
-    setTasks([...tasks, task]);
+    setTasks(prev => [...prev, task]);
     setNewTask("");
-    toast({
-      description: "任务添加成功！",
-    });
+    
+    try {
+      await generateTaskPlan(task.content);
+      toast({
+        description: "任务添加成功！",
+      });
+    } catch (error) {
+      toast({
+        description: "生成计划失败，请重试",
+        variant: "destructive",
+      });
+      // 移除失败的任务
+      setTasks(prev => prev.filter(t => t.id !== task.id));
+    }
   };
 
   const toggleTask = (taskId: number) => {
@@ -102,25 +220,47 @@ const Tasks = () => {
             {tasks.map((task) => (
               <div
                 key={task.id}
-                className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm"
+                className="bg-white rounded-lg shadow-sm overflow-hidden"
               >
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    checked={task.completed}
-                    onCheckedChange={() => toggleTask(task.id)}
-                  />
-                  <span className={`${task.completed ? 'line-through text-gray-400' : ''}`}>
-                    {task.content}
-                  </span>
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      checked={task.completed}
+                      onCheckedChange={() => toggleTask(task.id)}
+                    />
+                    <span className={`${task.completed ? 'line-through text-gray-400' : ''}`}>
+                      {task.content}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteTask(task.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    删除
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => deleteTask(task.id)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  删除
-                </Button>
+                {(task.plan || task.isGeneratingPlan) && (
+                  <div className="px-4 py-2 bg-gray-50 border-t text-sm text-gray-600">
+                    {task.reasoning && (
+                      <div className="mb-3">
+                        <p className="font-medium mb-1">推理过程：</p>
+                        <p className="whitespace-pre-wrap text-gray-500">{task.reasoning}</p>
+                      </div>
+                    )}
+                    <p className="font-medium mb-1">执行计划：</p>
+                    <div>
+                      {task.plan && <p className="whitespace-pre-wrap">{task.plan}</p>}
+                      {task.isGeneratingPlan && (
+                        <div className="flex items-center space-x-2 mt-2">
+                          <div className="animate-spin h-4 w-4 border-2 border-starry-dark border-t-transparent rounded-full"></div>
+                          <span>正在生成计划...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
             {tasks.length === 0 && (
