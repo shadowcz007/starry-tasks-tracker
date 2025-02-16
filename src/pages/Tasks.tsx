@@ -46,7 +46,7 @@ const Tasks = () => {
       const response = await fetch('https://api.siliconflow.cn/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': 'Bearer sk-kdwsdmvuqodqsiqscshzfoupwnuixqoazuozrrhqrkidlvwv',
+          'Authorization': `Bearer ${import.meta.env.VITE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
